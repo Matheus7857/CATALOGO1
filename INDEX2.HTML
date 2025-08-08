@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Rei da Mussarela</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- html2canvas and jsPDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .product-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            transition: transform 0.2s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        .price-tag {
+            background-color: #ef4444; /* Red color for price tag */
+            color: #ffffff;
+            font-weight: 700; /* font-bold */
+            padding: 0.5rem 1rem;
+            border-bottom-right-radius: 0.75rem; /* rounded-br-xl */
+            border-top-left-radius: 0.75rem; /* rounded-tl-xl */
+            position: absolute;
+            bottom: 0;
+            right: 0;
+        }
+
+        /* PDF-specific styles */
+        .pdf-header {
+            display: none;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+        .pdf-page-break {
+            page-break-after: always;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Main Catalog Page -->
+        <div id="catalog-page" class="page">
+            <!-- Header -->
+            <header class="bg-red-700 text-white p-6 shadow-md rounded-b-xl">
+                <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+                    <div class="text-3xl font-bold mb-4 md:mb-0">
+                        REI DA MUSSARELA <span class="block text-xl md:inline-block">E DO PÃO DE QUEIJO</span>
+                    </div>
+                    <nav class="text-lg flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
+                        <button id="goToAdminBtn" class="bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out shadow-md">
+                            Admin
+                        </button>
+                    </nav>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <main class="flex-grow container mx-auto p-6">
+                <h1 class="text-4xl font-extrabold text-gray-800 mb-8 text-center">CATÁLOGO 2025</h1>
+                <div class="flex justify-center mb-8">
+                    <button id="generatePdfBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-md transition duration-300 ease-in-out shadow-lg flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M.001 3.844v12.312h19.998V3.844H.001zm18.46 1.531v9.25H1.538v-9.25h16.923zM4.616 7.69h2.308v2.308H4.616V7.69zm3.846 0h2.308v2.308H8.462V7.69zm3.846 0h2.308v2.308h-2.308V7.69z" clip-rule="evenodd"></path></svg>
+                        Baixar Catálogo em PDF
+                    </button>
+                </div>
+                <section id="product-list-content" class="space-y-12 bg-white p-6 rounded-xl shadow-md">
+                    <div id="product-list">
+                        <!-- Products will be dynamically inserted here -->
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-gray-800 text-white p-6 mt-8 rounded-t-xl">
+                <div class="container mx-auto text-center">
+                    <p>&copy; 2025 Rei da Mussarela e Pão de Queijo LTDA. Todos os direitos reservados.</p>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Admin Page -->
+        <div id="admin-page" class="page hidden">
+            <header class="bg-red-700 text-white p-4 shadow-md rounded-b-xl flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Painel de Administração</h1>
+                <button id="backToCatalogBtn" class="bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out shadow-md">
+                    Voltar ao Catálogo
+                </button>
+            </header>
+
+            <div class="container mx-auto mt-8 bg-white p-8 rounded-xl shadow-lg">
+                <!-- Product Management Section -->
+                <h2 id="productFormTitle" class="text-2xl font-bold text-gray-800 mb-6">Adicionar Novo Produto</h2>
+                <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <input type="hidden" id="productId" />
+                    <div>
+                        <label for="productName" class="block text-gray-700 text-sm font-semibold mb-2">Nome do Produto:</label>
+                        <input type="text" id="productName" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required />
+                    </div>
+                    <div>
+                        <label for="productCode" class="block text-gray-700 text-sm font-semibold mb-2">Código:</label>
+                        <input type="text" id="productCode" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required />
+                    </div>
+                    <div>
+                        <label for="productDescription" class="block text-gray-700 text-sm font-semibold mb-2">Descrição:</label>
+                        <input type="text" id="productDescription" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    </div>
+                    <div>
+                        <label for="productPrice" class="block text-gray-700 text-sm font-semibold mb-2">Preço:</label>
+                        <input type="number" id="productPrice" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required />
+                    </div>
+                    <div>
+                        <label for="productUnitType" class="block text-gray-700 text-sm font-semibold mb-2">Unidade:</label>
+                        <select id="productUnitType" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                            <option value="KG">KG</option>
+                            <option value="UN">UN</option>
+                            <option value="PCT">PCT</option>
+                            <option value="CX">CX</option>
+                            <option value="G">G</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="productCategory" class="block text-gray-700 text-sm font-semibold mb-2">Categoria:</label>
+                        <select id="productCategory" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                            <option value="">Selecione uma categoria</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="productImageUrl" class="block text-gray-700 text-sm font-semibold mb-2">URL da Imagem:</label>
+                        <input type="text" id="productImageUrl" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Ex: https://example.com/image.jpg" />
+                        <p class="text-xs text-gray-500 mt-1">Ou</p>
+                        <label for="imageUpload" class="block text-gray-700 text-sm font-semibold mb-2">Upload de Imagem (PNG/JPG):</label>
+                        <input type="file" id="imageUpload" accept="image/png, image/jpeg" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" />
+                    </div>
+                    <div class="md:col-span-2 flex items-center">
+                        <input type="checkbox" id="productDisponivel" class="mr-2 h-5 w-5 text-red-600 focus:ring-red-500 border-gray-300 rounded" checked />
+                        <label for="productDisponivel" class="block text-gray-700 text-sm font-semibold">Produto Disponível</label>
+                    </div>
+                    <div class="md:col-span-2 flex justify-end space-x-4">
+                        <button type="submit" id="saveProductBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-md transition duration-300 ease-in-out shadow-md">Adicionar Produto</button>
+                        <button type="button" id="cancelEditProductBtn" class="hidden bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition duration-300 ease-in-out shadow-md">Cancelar</button>
+                    </div>
+                </form>
+
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Produtos Existentes</h2>
+                <div class="overflow-x-auto rounded-lg shadow-md">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Nome</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Código</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Preço</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Unidade</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Categoria</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Disponível</th>
+                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <!-- Product rows will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Category Management Section -->
+                <div class="mt-12 pt-8 border-t-2 border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Gerenciamento de Categorias</h2>
+                    <form id="categoryForm" class="flex flex-col md:flex-row gap-4 mb-8">
+                        <input type="hidden" id="categoryId" />
+                        <input type="text" id="categoryName" class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Nome da Nova Categoria" required />
+                        <button type="submit" id="saveCategoryBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-md transition duration-300 ease-in-out shadow-md">Adicionar Categoria</button>
+                        <button type="button" id="cancelEditCategoryBtn" class="hidden bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition duration-300 ease-in-out shadow-md">Cancelar</button>
+                    </form>
+
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Categorias Existentes</h3>
+                    <div class="overflow-x-auto rounded-lg shadow-md">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-200">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Nome da Categoria</th>
+                                    <th class="py-3 px-4 text-left text-sm font-semibold text-gray-700">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoriesTableBody">
+                                <!-- Category rows will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+            <p id="modal-message" class="text-lg font-semibold text-gray-800 mb-4"></p>
+            <button id="close-modal-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 ease-in-out">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // State management with localStorage
+            let products = JSON.parse(localStorage.getItem('products')) || [];
+            let categories = JSON.parse(localStorage.getItem('categories')) || [];
+
+            // DOM elements
+            const catalogPage = document.getElementById('catalog-page');
+            const adminPage = document.getElementById('admin-page');
+            const goToAdminBtn = document.getElementById('goToAdminBtn');
+            const backToCatalogBtn = document.getElementById('backToCatalogBtn');
+            const productList = document.getElementById('product-list');
+            const productsTableBody = document.getElementById('productsTableBody');
+            const categoriesTableBody = document.getElementById('categoriesTableBody');
+            const productForm = document.getElementById('productForm');
+            const categoryForm = document.getElementById('categoryForm');
+            const productCategorySelect = document.getElementById('productCategory');
+            const modal = document.getElementById('modal');
+            const modalMessage = document.getElementById('modal-message');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const generatePdfBtn = document.getElementById('generatePdfBtn');
+            const imageUploadInput = document.getElementById('imageUpload');
+            const productImageUrlInput = document.getElementById('productImageUrl');
+
+            // --- Utility Functions ---
+            const showModal = (message) => {
+                modalMessage.textContent = message;
+                modal.classList.remove('hidden');
+            };
+
+            const hideModal = () => {
+                modal.classList.add('hidden');
+            };
+
+            const saveData = () => {
+                localStorage.setItem('products', JSON.stringify(products));
+                localStorage.setItem('categories', JSON.stringify(categories));
+            };
+
+            const renderProductCatalog = () => {
+                const productsByCategory = products.reduce((acc, product) => {
+                    const category = product.category || 'Outros';
+                    if (!acc[category]) {
+                        acc[category] = [];
+                    }
+                    acc[category].push(product);
+                    return acc;
+                }, {});
+
+                productList.innerHTML = Object.keys(productsByCategory).map(category => `
+                    <div class="category-section">
+                        <h2 class="text-3xl font-bold text-gray-700 mb-6 border-b-2 border-red-500 pb-2">${category}</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            ${productsByCategory[category].map(product => `
+                                <div class="product-card relative overflow-hidden ${product.disponivel ? '' : 'opacity-50 grayscale'}" data-id="${product.id}">
+                                    <img
+                                        src="${product.imageUrl || 'https://placehold.co/400x300/E0E0E0/333333?text=Imagem+N%C3%A3o+Dispon%C3%ADvel'}"
+                                        alt="${product.name}"
+                                        class="w-full h-48 object-cover rounded-t-xl"
+                                        onerror="this.onerror=null; this.src='https://placehold.co/400x300/E0E0E0/333333?text=Imagem+N%C3%A3o+Dispon%C3%ADvel';"
+                                    />
+                                    <div class="p-4">
+                                        <h3 class="text-xl font-semibold text-gray-900 mb-2">${product.name}</h3>
+                                        <p class="text-gray-600 text-sm">${product.description || 'Sem descrição'}</p>
+                                        <div class="price-tag">R$ ${product.price.toFixed(2)} ${product.unitType || 'KG'}</div>
+                                        <p class="text-sm font-semibold mt-2 ${product.disponivel ? 'text-green-600' : 'text-red-600'}">
+                                            ${product.disponivel ? 'Disponível' : 'Indisponível'}
+                                        </p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            };
+
+            const renderAdminTables = () => {
+                productsTableBody.innerHTML = products.map(product => `
+                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                        <td class="py-3 px-4 text-gray-800">${product.name}</td>
+                        <td class="py-3 px-4 text-gray-800">${product.code}</td>
+                        <td class="py-3 px-4 text-gray-800">R$ ${product.price.toFixed(2)}</td>
+                        <td class="py-3 px-4 text-gray-800">${product.unitType || 'KG'}</td>
+                        <td class="py-3 px-4 text-gray-800">${product.category}</td>
+                        <td class="py-3 px-4 text-gray-800">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${product.disponivel ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${product.disponivel ? 'Sim' : 'Não'}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 flex space-x-2">
+                            <button onclick="editProduct('${product.id}')" class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-md text-sm transition duration-300">Editar</button>
+                            <button onclick="deleteProduct('${product.id}')" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md text-sm transition duration-300">Excluir</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                categoriesTableBody.innerHTML = categories.map(category => `
+                    <tr class="border-b border-gray-200 hover:bg-gray-50">
+                        <td class="py-3 px-4 text-gray-800">${category.name}</td>
+                        <td class="py-3 px-4 flex space-x-2">
+                            <button onclick="editCategory('${category.id}')" class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-md text-sm transition duration-300">Editar</button>
+                            <button onclick="deleteCategory('${category.id}')" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md text-sm transition duration-300">Excluir</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Update category select dropdown
+                productCategorySelect.innerHTML = '<option value="">Selecione uma categoria</option>' + categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
+            };
+
+            const renderPdfContent = () => {
+                const pdfContainer = document.createElement('div');
+                pdfContainer.classList.add('pdf-content');
+                pdfContainer.style.width = '210mm'; /* A4 width */
+                pdfContainer.style.padding = '15mm'; /* Some margin for printing */
+                pdfContainer.style.backgroundColor = '#ffffff';
+
+                const productsByCategory = products.reduce((acc, product) => {
+                    const category = product.category || 'Outros';
+                    if (!acc[category]) {
+                        acc[category] = [];
+                    }
+                    acc[category].push(product);
+                    return acc;
+                }, {});
+
+                const header = `
+                    <div style="text-align: center; font-family: 'Inter', sans-serif; margin-bottom: 20px;">
+                        <h1 style="font-size: 24px; font-weight: bold; color: #333;">CATÁLOGO 2025</h1>
+                        <h2 style="font-size: 18px; color: #555;">REI DA MUSSARELA E DO PÃO DE QUEIJO</h2>
+                    </div>
+                `;
+                pdfContainer.innerHTML += header;
+
+                let categoryIndex = 0;
+                Object.keys(productsByCategory).forEach(category => {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.style.marginBottom = '20px';
+                    categoryDiv.innerHTML = `<h3 style="font-size: 20px; font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 2px solid #ef4444; padding-bottom: 5px;">${category}</h3>`;
+                    
+                    productsByCategory[category].forEach(product => {
+                        const productDiv = document.createElement('div');
+                        productDiv.style.display = 'flex';
+                        productDiv.style.alignItems = 'flex-start';
+                        productDiv.style.marginBottom = '15px';
+                        productDiv.style.borderBottom = '1px dashed #ccc';
+                        productDiv.style.paddingBottom = '15px';
+                        
+                        const imageHtml = product.imageUrl ? `<div style="flex-shrink: 0; width: 100px; height: 100px; overflow: hidden; margin-right: 15px;"><img src="${product.imageUrl}" style="width: 100%; height: 100%; object-fit: cover;"></div>` : '';
+                        
+                        productDiv.innerHTML += `
+                            ${imageHtml}
+                            <div style="flex-grow: 1;">
+                                <h4 style="font-size: 16px; font-weight: bold; color: #444;">${product.name}</h4>
+                                <p style="font-size: 14px; color: #666; margin-top: 5px;">${product.description || 'Sem descrição'}</p>
+                                <p style="font-size: 14px; font-weight: bold; color: #333; margin-top: 5px;">
+                                    R$ ${product.price.toFixed(2)} ${product.unitType || 'KG'}
+                                </p>
+                                <p style="font-size: 12px; color: #999;">Cód: ${product.code}</p>
+                                <p style="font-size: 12px; font-weight: bold; margin-top: 5px; color: ${product.disponivel ? 'green' : 'red'};">
+                                    ${product.disponivel ? 'Disponível' : 'Indisponível'}
+                                </p>
+                            </div>
+                        `;
+                        categoryDiv.appendChild(productDiv);
+                    });
+                    
+                    pdfContainer.appendChild(categoryDiv);
+                    categoryIndex++;
+                    if (categoryIndex < Object.keys(productsByCategory).length) {
+                        const pageBreak = document.createElement('div');
+                        pageBreak.classList.add('pdf-page-break');
+                        pdfContainer.appendChild(pageBreak);
+                    }
+                });
+
+                return pdfContainer;
+            };
+
+            // --- Admin Logic ---
+            window.addProduct = (productData) => {
+                products.push({ ...productData, id: Date.now().toString() });
+                saveData();
+                renderAdminTables();
+                showModal('Produto adicionado com sucesso!');
+            };
+
+            window.editProduct = (id) => {
+                const product = products.find(p => p.id === id);
+                if (product) {
+                    document.getElementById('productId').value = product.id;
+                    document.getElementById('productName').value = product.name;
+                    document.getElementById('productCode').value = product.code;
+                    document.getElementById('productDescription').value = product.description || '';
+                    document.getElementById('productPrice').value = product.price;
+                    document.getElementById('productUnitType').value = product.unitType || 'KG';
+                    document.getElementById('productCategory').value = product.category;
+                    document.getElementById('productImageUrl').value = product.imageUrl || '';
+                    document.getElementById('productDisponivel').checked = product.disponivel !== undefined ? product.disponivel : true;
+
+                    document.getElementById('productFormTitle').textContent = 'Editar Produto';
+                    document.getElementById('saveProductBtn').textContent = 'Salvar Edição';
+                    document.getElementById('cancelEditProductBtn').classList.remove('hidden');
+                }
+            };
+
+            window.deleteProduct = (id) => {
+                products = products.filter(p => p.id !== id);
+                saveData();
+                renderAdminTables();
+                showModal('Produto excluído com sucesso!');
+            };
+            
+            productForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = document.getElementById('productId').value;
+                const name = document.getElementById('productName').value;
+                const code = document.getElementById('productCode').value;
+                const description = document.getElementById('productDescription').value;
+                const price = parseFloat(document.getElementById('productPrice').value);
+                const unitType = document.getElementById('productUnitType').value;
+                const category = document.getElementById('productCategory').value;
+                const imageUrl = document.getElementById('productImageUrl').value;
+                const disponivel = document.getElementById('productDisponivel').checked;
+                
+                const productData = { name, code, description, price, unitType, category, imageUrl, disponivel };
+
+                if (id) {
+                    products = products.map(p => p.id === id ? { ...productData, id: p.id } : p);
+                    showModal('Produto atualizado com sucesso!');
+                } else {
+                    products.push({ ...productData, id: Date.now().toString() });
+                    showModal('Produto adicionado com sucesso!');
+                }
+                saveData();
+                renderAdminTables();
+                productForm.reset();
+                document.getElementById('productId').value = '';
+                document.getElementById('productFormTitle').textContent = 'Adicionar Novo Produto';
+                document.getElementById('saveProductBtn').textContent = 'Adicionar Produto';
+                document.getElementById('cancelEditProductBtn').classList.add('hidden');
+            });
+
+            document.getElementById('cancelEditProductBtn').addEventListener('click', () => {
+                productForm.reset();
+                document.getElementById('productId').value = '';
+                document.getElementById('productFormTitle').textContent = 'Adicionar Novo Produto';
+                document.getElementById('saveProductBtn').textContent = 'Adicionar Produto';
+                document.getElementById('cancelEditProductBtn').classList.add('hidden');
+            });
+
+            imageUploadInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        productImageUrlInput.value = reader.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            window.addCategory = (name) => {
+                const categoryExists = categories.some(cat => cat.name.toLowerCase() === name.toLowerCase());
+                if (categoryExists) {
+                    showModal('Esta categoria já existe.');
+                    return;
+                }
+                categories.push({ id: Date.now().toString(), name: name });
+                saveData();
+                renderAdminTables();
+                showModal('Categoria adicionada com sucesso!');
+            };
+
+            window.editCategory = (id) => {
+                const category = categories.find(c => c.id === id);
+                if (category) {
+                    document.getElementById('categoryId').value = category.id;
+                    document.getElementById('categoryName').value = category.name;
+                    document.getElementById('saveCategoryBtn').textContent = 'Salvar Categoria';
+                    document.getElementById('cancelEditCategoryBtn').classList.remove('hidden');
+                }
+            };
+
+            window.deleteCategory = (id) => {
+                const category = categories.find(c => c.id === id);
+                const isCategoryUsed = products.some(p => p.category === category.name);
+                if (isCategoryUsed) {
+                    showModal('Não é possível excluir uma categoria que está sendo usada por um produto.');
+                    return;
+                }
+                categories = categories.filter(c => c.id !== id);
+                saveData();
+                renderAdminTables();
+                showModal('Categoria excluída com sucesso!');
+            };
+
+            categoryForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = document.getElementById('categoryId').value;
+                const name = document.getElementById('categoryName').value;
+
+                if (id) {
+                    categories = categories.map(c => c.id === id ? { ...c, name: name } : c);
+                    showModal('Categoria atualizada com sucesso!');
+                } else {
+                    window.addCategory(name);
+                }
+                saveData();
+                renderAdminTables();
+                categoryForm.reset();
+                document.getElementById('categoryId').value = '';
+                document.getElementById('saveCategoryBtn').textContent = 'Adicionar Categoria';
+                document.getElementById('cancelEditCategoryBtn').classList.add('hidden');
+            });
+
+            document.getElementById('cancelEditCategoryBtn').addEventListener('click', () => {
+                categoryForm.reset();
+                document.getElementById('categoryId').value = '';
+                document.getElementById('saveCategoryBtn').textContent = 'Adicionar Categoria';
+                document.getElementById('cancelEditCategoryBtn').classList.add('hidden');
+            });
+
+            // --- Navigation and Event Listeners ---
+            goToAdminBtn.addEventListener('click', () => {
+                catalogPage.classList.add('hidden');
+                adminPage.classList.remove('hidden');
+                renderAdminTables();
+            });
+
+            backToCatalogBtn.addEventListener('click', () => {
+                adminPage.classList.add('hidden');
+                catalogPage.classList.remove('hidden');
+                renderProductCatalog();
+            });
+
+            closeModalBtn.addEventListener('click', hideModal);
+
+            generatePdfBtn.addEventListener('click', async () => {
+                showModal('Gerando PDF... Por favor, aguarde.');
+                
+                const pdfContent = renderPdfContent();
+                document.body.appendChild(pdfContent);
+
+                if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+                    showModal('Erro: Bibliotecas de geração de PDF (html2canvas, jspdf) não carregadas.');
+                    document.body.removeChild(pdfContent);
+                    return;
+                }
+                
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const canvas = await html2canvas(pdfContent, { scale: 2, useCORS: true, logging: true, allowTaint: true });
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+                    const imgWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    pdf.save('catalogo-produtos.pdf');
+                    showModal('PDF gerado com sucesso!');
+                } catch (error) {
+                    console.error("Erro ao gerar PDF:", error);
+                    showModal(`Erro ao gerar PDF: ${error.message}`);
+                } finally {
+                    document.body.removeChild(pdfContent);
+                }
+            });
+
+            // Initial render
+            renderProductCatalog();
+        });
+    </script>
+</body>
+</html>
